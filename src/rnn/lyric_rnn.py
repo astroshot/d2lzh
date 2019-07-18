@@ -1,5 +1,6 @@
 # coding=utf-8
 
+import os
 from mxnet import nd
 import random
 import zipfile
@@ -46,7 +47,11 @@ def data_iter_consecurtive(corpus_indices, batch_size, num_steps, ctx=None):
 
 
 def main():
-    with zipfile.ZipFile('../../data/jaychou_lyrics.txt.zip') as zin:
+    cwd = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    data_path = os.path.join(cwd, '../data')
+    lyrics_file = os.path.join(data_path, 'jaychou_lyrics.txt.zip')
+    print(lyrics_file)
+    with zipfile.ZipFile(lyrics_file) as zin:
         with zin.open('jaychou_lyrics.txt') as f:
             corpus_chars = f.read().decode('utf-8')
     corpus_chars[:40]
@@ -64,4 +69,11 @@ def main():
 
     my_seq = list(range(30))
     for X, Y in data_iter_random(my_seq, 2, 6):
-        print('X:' X, '\nY:', Y, '\n')
+        print('X:\n')
+        print(X)
+        print('\nY:\n')
+        print(Y)
+
+
+if __name__ == '__main__':
+    main()
