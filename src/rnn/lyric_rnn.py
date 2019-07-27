@@ -1,9 +1,10 @@
 # coding=utf-8
 
 import os
-from mxnet import nd
 import random
 import zipfile
+
+from mxnet import nd
 
 
 def data_iter_random(corpus_indices, batch_size, num_steps, ctx=None):
@@ -20,14 +21,12 @@ def data_iter_random(corpus_indices, batch_size, num_steps, ctx=None):
     example_indices = list(range(num_examples))
     random.shuffle(example_indices)
 
-
     def _data(pos):
         return corpus_indices[pos: pos + num_steps]
 
-
     for i in range(epoch_size):
         i = i * batch_size
-        batch_indices = example_indices[i: i+batch_size]
+        batch_indices = example_indices[i: i + batch_size]
         X = [_data(j * num_steps) for j in batch_indices]
         Y = [_data(j * num_steps + 1) for j in batch_indices]
         yield nd.array(X, ctx), nd.array(Y, ctx)
@@ -54,7 +53,7 @@ def main():
     with zipfile.ZipFile(lyrics_file) as zin:
         with zin.open('jaychou_lyrics.txt') as f:
             corpus_chars = f.read().decode('utf-8')
-    corpus_chars[:40]
+    print(corpus_chars[:40])
 
     # 建立字符索引
     idx_to_char = list(set(corpus_chars))
