@@ -177,7 +177,7 @@ class Word2Vector(object):
         x = word[self.token_to_idx[query_token]]
 
         cos = nd.dot(word, x) / (nd.sum(word * word, axis=1) * nd.sum(x * x) + 1e-9).sqrt()
-        topk = nd.topk(cos, k=k+1, ret_typ='indices').asnumpy().astype('int32')
+        topk = nd.topk(cos, k=k + 1, ret_typ='indices').asnumpy().astype('int32')
         for i in topk[1:]:
             print('cosine sim=%.3f: %s' % (cos[i].asscalar(), (self.idx_to_token[i])))
 
