@@ -11,7 +11,7 @@ from mxnet.gluon import loss as gloss
 from src.rnn.util import load_data_jay_lyrics, to_onehot, grad_clipping
 
 
-class GRUTest(object):
+class LSTMTest(object):
 
     def __init__(self, batch_size, num_steps):
         corpus_indices, char_to_idx, idx_to_char, vocab_size = load_data_jay_lyrics()
@@ -39,43 +39,57 @@ class GRUTest(object):
             return (_one((self.num_inputs, self.num_hiddens)), _one((self.num_hiddens, self.num_hiddens)),
                     nd.zeros(self.num_hiddens, ctx=self.ctx))
 
-        W_xz, W_hz, b_z = _three()  # update gate param
-        W_xr, W_hr, b_r = _three()  # reset gate param
-        W_xh, W_hh, b_h = _three()  #
+        W_xi, W_hi, b_i = _three()
+        W_xf, W_hf, b_f = _three()
+        W_xo, W_ho, b_o = _three()
+        W_xc, W_hc, b_c = _three()
 
         W_hq = _one((self.num_hiddens, self.num_outputs))
         b_q = nd.zeros(self.num_outputs, ctx=self.ctx)
 
-        params = [W_xz, W_hz, b_z, W_xr, W_hr, b_r, W_xh, W_hh, b_h, W_hq, b_q]
+        params = [
+            W_xi, W_hi, b_i,
+            W_xf, W_hf, b_f,
+            W_xo, W_ho, b_o,
+            W_xc, W_hc, b_c,
+            W_hq, b_q
+        ]
+
         for param in params:
             param.attach_grad()
+
         self.params = params
 
-    def init_gru_state(self, batch_size):
-        return nd.zeros(shape=(batch_size, self.num_hiddens), ctx=self.ctx)
+    def init_lstm_state(self, batch_size):
+        return (nd.zeros(shape=(batch_size, self.num_hiddens), ctx=self.ctx),
+                nd.zeros(shape=(batch_size, self.num_hiddens), ctx=self.ctx))
 
-    def gru(self, inputs, state):
-        W_xz, W_hz, b_z, W_xr, W_hr, b_r, W_xh, W_hh, b_h, W_hq, b_q = self.params
-        H = state
+    def lstm(self, inputs, state):
+        [W_xi, W_hi, b_i, W_xf, W_hf, b_f, W_xo, W_ho, b_o, W_xc, W_hc, b_c,
+         W_hq, b_q] = self.params
+        (H, C) = state
         outputs = []
 
         for X in inputs:
-            Z = nd.sigmoid(nd.dot(X, W_xz) + nd.dot(H, W_hz) + b_z)
-            R = nd.sigmoid(nd.dot(X, W_xr) + nd.dot(H, W_hr) + b_r)
-            H_tilda = nd.tanh(nd.dot(R * H, W_hh) + nd.dot(X, W_xh) + b_h)
-            H = Z * H + (1 - Z) * H_tilda
+            I = nd.sigmoid(nd.dot(X, W_xi) + nd.dot(H, W_hi) + b_i)
+            F = nd.sigmoid(nd.dot(X, W_xf) + nd.dot(H, W_hf) + b_f)
+            O = nd.sigmoid(nd.dot(X, W_xo) + nd.dot(H, W_ho) + b_o)
+            C_tilda = nd.tanh(nd.dot(X, W_xc) + nd.dot(H, W_hc) + b_c)
+
+            C = I * C_tilda + F * C
+            H = nd.tanh(C) * O
             Y = nd.dot(H, W_hq) + b_q
             outputs.append(Y)
 
-        return outputs, H
+        return outputs, (H, C)
 
-    def predict_rnn(self, prefix, num_chars):
+    def predict(self, prefix, num_chars):
         """Predict next chars with a RNN model"""
-        state = self.init_gru_state(1)
+        state = self.init_lstm_state(1)
         output = [self.char_to_idx[prefix[0]]]
         for t in range(num_chars + len(prefix) - 1):
             X = to_onehot(nd.array([output[-1]], ctx=self.ctx), self.vocab_size)
-            (Y, state) = self.gru(X, state)
+            (Y, state) = self.lstm(X, state)
             if t < len(prefix) - 1:
                 output.append(self.char_to_idx[prefix[t + 1]])
             else:
@@ -92,19 +106,19 @@ class GRUTest(object):
 
         for epoch in range(num_epochs):
             if not is_random_iter:  # 如使用相邻采样，在epoch开始时初始化隐藏状态
-                state = self.init_gru_state(self.batch_size)
+                state = self.init_lstm_state(self.batch_size)
             l_sum, n, start = 0.0, 0, time.time()
             data_iter = data_iter_fn(self.corpus_indices, self.batch_size, self.num_steps, self.ctx)
             for X, Y in data_iter:
                 if is_random_iter:  # 如使用随机采样，在每个小批量更新前初始化隐藏状态
-                    state = self.init_gru_state(self.batch_size)
+                    state = self.init_lstm_state(self.batch_size)
                 else:  # 否则需要使用detach函数从计算图分离隐藏状态
                     for s in state:
                         s.detach()
                 with autograd.record():
                     inputs = to_onehot(X, self.vocab_size)
                     # outputs有num_steps个形状为(batch_size, vocab_size)的矩阵
-                    (outputs, state) = self.gru(inputs, state)
+                    (outputs, state) = self.lstm(inputs, state)
                     # 拼接之后形状为(num_steps * batch_size, vocab_size)
                     outputs = nd.concat(*outputs, dim=0)
                     # Y的形状是(batch_size, num_steps)，转置后再变成长度为
@@ -122,7 +136,7 @@ class GRUTest(object):
                 print('epoch %d, perplexity %f, time %.2f sec' % (
                     epoch + 1, math.exp(l_sum / n), time.time() - start))
                 for prefix in prefixes:
-                    print(' -', self.predict_rnn(prefix, pred_len))
+                    print(' -', self.predict(prefix, pred_len))
 
 
 if __name__ == '__main__':
@@ -135,5 +149,5 @@ if __name__ == '__main__':
     pred_len = 50
     prefixes = ['分开', '不分开']
 
-    g = GRUTest(batch_size, num_steps)
-    g.train_and_predict(False, num_epochs, lr, clipping_theta, pred_period, pred_len, prefixes)
+    l = LSTMTest(batch_size, num_steps)
+    l.train_and_predict(False, num_epochs, lr, clipping_theta, pred_period, pred_len, prefixes)
