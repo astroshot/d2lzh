@@ -7,7 +7,7 @@ import tensorflow as tf
 from keras.datasets import imdb
 from keras.layers import (
     Input, Embedding, Lambda, Conv2D, MaxPooling2D, Flatten,
-    Dropout, Dense, concatenate
+    Dropout, Dense, Concatenate
 )
 from keras.models import Model
 from matplotlib import pyplot as plt
@@ -38,6 +38,28 @@ def _reshapes(embed):
 
 
 if __name__ == '__main__':
+    """
+    参数与超参数：
+
+    - sequence_length （Q: 对于CNN, 输入与输出都是固定的，可每个句子长短不一, 怎么处理? 
+        A: 需要做定长处理, 比如定为n, 超过的截断, 不足的补0. 注意补充的0对后面的结果没有影响，
+        因为后面的max-pooling只会输出最大值，补零的项会被过滤掉）
+    - num_classes （多分类, 分为几类）
+    - vocabulary_size （语料库的词典大小, 记为|D|）
+    - embedding_size （将词向量的维度, 由原始的 |D| 降维到 embedding_size）
+    - filter_size_arr （多个不同size的filter）
+    
+    2015年“A Sensitivity Analysis of (and Practitioners' Guide to) Convolutional Neural Networks for Sentence Classification”论文详细地阐述了关于TextCNN模型的调参心得
+    --------------------- 
+
+    - 使用预训练的word2vec 、 GloVe初始化效果会更好。一般不直接使用One-hot。
+    - 卷积核的大小影响较大，一般取1~10，对于句子较长的文本，则应选择大一些。
+    - 卷积核的数量也有较大的影响，一般取100~600 ，同时一般使用Dropout（0~0.5）。
+    - 激活函数一般选用ReLU 和 tanh。
+    - 池化使用1-max pooling。
+    - 随着feature map数量增加，性能减少时，试着尝试大于0.5的Dropout。
+    - 评估模型性能时，记得使用交叉验证。
+    """
     (train_data, train_labels), (test_data, test_labels) = load_imdb()
 
     word_index = imdb.get_word_index()
@@ -75,7 +97,7 @@ if __name__ == '__main__':
     flatten_pool3 = Flatten()(pool3)
     convs.append(flatten_pool3)
 
-    merge = concatenate(convs, axis=1)
+    merge = Concatenate(axis=1)(convs)
     out = Dropout(0.5)(merge)
     output = Dense(units=32, activation='relu')(out)
     pred = Dense(units=1, activation='sigmoid')(output)
@@ -104,7 +126,7 @@ if __name__ == '__main__':
     val_loss = history.history['val_loss']
 
     epochs = range(1, len(acc) + 1)
-    ##########-------------画图方式1-----------------
+    # # -------------画图方式1-----------------
 
     # "bo" is for "blue dot"
     plt.plot(epochs, loss, 'bo', label='Training loss')
