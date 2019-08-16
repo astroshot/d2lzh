@@ -1,19 +1,18 @@
 # coding=utf-8
 """
 """
-import os
 
-from keras.models import Model
+import numpy as np
 from keras.layers import (
     Input, Dense, Dropout, BatchNormalization, Conv2D, MaxPooling2D, AveragePooling2D, concatenate
 )
-import numpy as np
+from keras.models import Model
 
 seed = 7
 np.random.seed(seed)
 
 
-def conv2d_bn(x, nb_filter, kernel_size, padding='same', strides=(1, 1), name=None):
+def conv2d_bn(x, filter_num, kernel_size, padding='same', strides=(1, 1), name=None):
     if name is not None:
         bn_name = name + 'bn'
         conv_name = name + 'conv'
@@ -21,22 +20,22 @@ def conv2d_bn(x, nb_filter, kernel_size, padding='same', strides=(1, 1), name=No
         bn_name = None
         conv_name = None
 
-    x = Conv2D(nb_filter, kernel_size, padding=padding, strides=strides, activation='relu', name=conv_name)(x)
+    x = Conv2D(filter_num, kernel_size, padding=padding, strides=strides, activation='relu', name=conv_name)(x)
     x = BatchNormalization(axis=3, name=bn_name)(x)
     return x
 
 
-def inception(x, nb_filter):
-    branch_1x1 = conv2d_bn(x, nb_filter, (1, 1))
+def inception(x, filter_num):
+    branch_1x1 = conv2d_bn(x, filter_num, (1, 1))
 
-    branch_3x3 = conv2d_bn(x, nb_filter, (1, 1))
-    branch_3x3 = conv2d_bn(branch_3x3, nb_filter, (3, 3))
+    branch_3x3 = conv2d_bn(x, filter_num, (1, 1))
+    branch_3x3 = conv2d_bn(branch_3x3, filter_num, (3, 3))
 
-    branch_5x5 = conv2d_bn(x, nb_filter, (1, 1))
-    branch_5x5 = conv2d_bn(branch_5x5, nb_filter, (5, 5))
+    branch_5x5 = conv2d_bn(x, filter_num, (1, 1))
+    branch_5x5 = conv2d_bn(branch_5x5, filter_num, (5, 5))
 
     branch_pool = MaxPooling2D((3, 3), strides=(1, 1), padding='same')(x)
-    branch_pool = conv2d_bn(branch_pool, nb_filter, (1, 1))
+    branch_pool = conv2d_bn(branch_pool, filter_num, (1, 1))
 
     x = concatenate([branch_1x1, branch_3x3, branch_5x5, branch_pool], axis=3)
     return x
