@@ -1,9 +1,10 @@
 # coding=utf-8
+"""TextCNN Example
 """
-"""
-import keras
+
 import numpy as np
 import tensorflow as tf
+from keras import preprocessing
 from keras.datasets import imdb
 from keras.layers import (
     Input, Embedding, Lambda, Conv2D, MaxPooling2D, Flatten,
@@ -48,7 +49,7 @@ if __name__ == '__main__':
     - vocabulary_size （语料库的词典大小, 记为|D|）
     - embedding_size （将词向量的维度, 由原始的 |D| 降维到 embedding_size）
     - filter_size_arr （多个不同size的filter）
-    
+
     2015年“A Sensitivity Analysis of (and Practitioners' Guide to) Convolutional Neural Networks for Sentence Classification”论文详细地阐述了关于TextCNN模型的调参心得
     --------------------- 
 
@@ -72,9 +73,9 @@ if __name__ == '__main__':
     reverse_word_index = dict([(value, key) for (key, value) in word_index.items()])
     print(decode_review(train_data[0]))
 
-    train_data = keras.preprocessing.sequence.pad_sequences(
+    train_data = preprocessing.sequence.pad_sequences(
         train_data, value=word_index['<PAD>'], padding='post', maxlen=256)
-    test_data = keras.preprocessing.sequence.pad_sequences(
+    test_data = preprocessing.sequence.pad_sequences(
         test_data, value=word_index['<PAD>'], padding='post', maxlen=256)
 
     convs = []
