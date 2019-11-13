@@ -219,5 +219,3 @@ def train(maxlen=40,
 
     with open(process_path, 'rb') as f:
         pickle.dump(processer, f)
-
-
